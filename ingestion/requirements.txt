@@ -1,0 +1,6 @@
+requests
+pandas
+boto3
+pyarrow
+python-dotenv
+kagglehub
