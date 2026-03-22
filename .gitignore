@@ -22,6 +22,10 @@ override.tf.json
 # Ignore plan files
 *.tfplan
 
+# dbt
+olist_dbt/target/
+olist_dbt/dbt_packages/
+olist_dbt/logs/
 
 .DS_Store
 **/.DS_Store

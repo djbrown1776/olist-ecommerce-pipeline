@@ -1,0 +1,38 @@
+
+version: 2
+
+sources:
+  - name: silver
+    schema: silver
+    description: Silver-layer tables loaded from S3 parquet via COPY
+    tables:
+      - name: order_details
+        description: Denormalized order items with customer, product, seller, and delivery metrics
+        columns:
+          - name: order_id
+            tests:
+              - not_null
+          - name: order_item_id
+            tests:
+              - not_null
+
+      - name: order_payments
+        description: Payment methods per order with status and purchase timestamp
+        columns:
+          - name: order_id
+            tests:
+              - not_null
+          - name: payment_sequential
+            tests:
+              - not_null
+
+      - name: order_reviews
+        description: Customer reviews per order with scores and comments
+        columns:
+          - name: order_id
+            tests:
+              - not_null
+          - name: review_id
+            tests:
+              - not_null
+              - unique
