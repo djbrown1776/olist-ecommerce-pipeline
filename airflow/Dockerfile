@@ -7,4 +7,5 @@ RUN pip install --no-cache-dir \
     sqlalchemy \
     psycopg2-binary \
     python-dotenv \
-    dbt-postgres
+    dbt-redshift \
+    apache-airflow-providers-amazon

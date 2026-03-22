@@ -1,6 +1,9 @@
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
+from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
+from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
+from airflow.operators.bash import BashOperator
 
 default_args = {
     'owner': 'tank',
@@ -11,7 +14,7 @@ default_args = {
 with DAG(
     dag_id='olist_ecs_pipeline',          
     default_args=default_args,
-    description='Fetch olist data and load to S3 via ECS Fargate',
+    description='End to end Olist pipeline: ingest, transform, load, model',
     start_date=datetime(2026, 3, 14),
     schedule_interval='@daily',
     catchup=False,
@@ -38,3 +41,47 @@ with DAG(
         awslogs_group='/ecs/olist-ecommerce-pipeline',
         awslogs_stream_prefix='ecs/olist-ecommerce-pipeline',
     )
+
+    run_glue_transform = GlueJobOperator(
+        task_id='run_glue_transform',
+        job_name='olist-ecommerce-pipeline-transform',
+        wait_for_completion=True,
+        verbose=True,
+    )
+    
+    load_silver_to_redshift = SQLExecuteQueryOperator(
+        task_id='load_silver_to_redshift',
+        conn_id='redshift_default',
+        sql="""
+            TRUNCATE silver.order_details;
+            TRUNCATE silver.order_payments;
+            TRUNCATE silver.order_reviews;
+
+            COPY silver.order_details
+            FROM 's3://olist-ecom-dev-33b0/silver/order_details/'
+            IAM_ROLE '{{ var.value.redshift_iam_role_arn }}'
+            FORMAT AS PARQUET;
+
+            COPY silver.order_payments
+            FROM 's3://olist-ecom-dev-33b0/silver/order_payments/'
+            IAM_ROLE '{{ var.value.redshift_iam_role_arn }}'
+            FORMAT AS PARQUET;
+
+            COPY silver.order_reviews
+            FROM 's3://olist-ecom-dev-33b0/silver/order_reviews/'
+            IAM_ROLE '{{ var.value.redshift_iam_role_arn }}'
+            FORMAT AS PARQUET;
+        """,
+    )
+
+    dbt_run = BashOperator(
+        task_id='dbt_run',
+        bash_command='cd /opt/airflow/dbt && dbt run --profiles-dir /home/airflow/.dbt',
+    )
+
+    dbt_test = BashOperator(
+        task_id='dbt_test',
+        bash_command='cd /opt/airflow/dbt && dbt test --profiles-dir /home/airflow/.dbt',
+    )
+
+    fetch_olist >> run_glue_transform >> load_silver_to_redshift >> dbt_run >> dbt_test
