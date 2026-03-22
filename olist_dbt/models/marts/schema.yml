@@ -1,0 +1,41 @@
+
+version: 2
+
+models:
+  - name: fct_orders
+    description: One row per order with aggregated items, payments, and review score.
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+          - unique
+      - name: order_status
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['delivered', 'shipped', 'canceled', 'unavailable', 'invoiced', 'processing', 'created', 'approved']
+      - name: total_payment_value
+        tests:
+          - not_null
+
+  - name: dim_customers
+    description: One row per customer with location, order history, and lifetime value.
+    columns:
+      - name: customer_unique_id
+        tests:
+          - not_null
+          - unique
+      - name: total_orders
+        tests:
+          - not_null
+
+  - name: dim_products
+    description: One row per product with category, dimensions, and sales metrics.
+    columns:
+      - name: product_id
+        tests:
+          - not_null
+          - unique
+      - name: times_ordered
+        tests:
+          - not_null
