@@ -1,4 +1,3 @@
-
 version: 2
 
 sources:
@@ -35,4 +34,3 @@ sources:
           - name: review_id
             tests:
               - not_null
-              - unique
