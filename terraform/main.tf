@@ -32,7 +32,7 @@ resource "aws_s3_bucket" "data_bucket" {
   }
 }
 
-# Versioning 
+# Versioning
 resource "aws_s3_bucket_versioning" "data_versioning" {
   bucket = aws_s3_bucket.data_bucket.id
 
@@ -80,7 +80,7 @@ resource "aws_iam_role_policy_attachment" "execution_role_policy" {
   policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy"
 }
 
-# Secrets Access 
+# Secrets Access
 resource "aws_iam_role_policy" "secrets_access" {
   name = "${var.pipeline_name}-secrets-access"
   role = aws_iam_role.execution_role.id
@@ -94,7 +94,7 @@ resource "aws_iam_role_policy" "secrets_access" {
   })
 }
 
-# ECR Repository 
+# ECR Repository
 resource "aws_ecr_repository" "this" {
   name                 = var.pipeline_name
   image_tag_mutability = "MUTABLE"
@@ -107,12 +107,12 @@ resource "aws_cloudwatch_log_group" "this" {
   retention_in_days = 30
 }
 
-# ECS Cluster 
+# ECS Cluster
 resource "aws_ecs_cluster" "this" {
   name = "${var.pipeline_name}-cluster"
 }
 
-# Task Role 
+# Task Role
 resource "aws_iam_role" "task_role" {
   name = "${var.pipeline_name}-task-role"
   assume_role_policy = jsonencode({
@@ -203,6 +203,7 @@ resource "aws_iam_role_policy" "glue_s3_access" {
       Action = [
         "s3:GetObject",
         "s3:PutObject",
+        "s3:DeleteObject",
         "s3:ListBucket"
       ]
       Resource = [
@@ -213,7 +214,7 @@ resource "aws_iam_role_policy" "glue_s3_access" {
   })
 }
 
-# Glue job 
+# Glue job
 resource "aws_glue_job" "transform" {
   name     = "${var.pipeline_name}-transform"
   role_arn = aws_iam_role.glue_role.arn
@@ -327,7 +328,7 @@ resource "aws_security_group" "redshift" {
   }
 }
 
-# Redshift Workgroup 
+# Redshift Workgroup
 
 resource "aws_redshiftserverless_workgroup" "this" {
   workgroup_name      = "${var.pipeline_name}-workgroup"

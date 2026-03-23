@@ -12,7 +12,7 @@ default_args = {
     }
 
 with DAG(
-    dag_id='olist_ecs_pipeline',          
+    dag_id='olist_ecs_pipeline',
     default_args=default_args,
     description='End to end Olist pipeline: ingest, transform, load, model',
     start_date=datetime(2026, 3, 14),
@@ -20,11 +20,11 @@ with DAG(
     catchup=False,
     tags=['olist', 'ecs', 'pipeline'],
 ) as dag:
-    
+
     fetch_olist = EcsRunTaskOperator(
         task_id='fetch_olist_to_s3',
-        cluster='olist-ecommerce-pipeline-cluster',       
-        task_definition='olist-ecommerce-pipeline',       
+        cluster='olist-ecommerce-pipeline-cluster',
+        task_definition='olist-ecommerce-pipeline',
         launch_type='FARGATE',
         overrides={},
         network_configuration={
@@ -34,7 +34,7 @@ with DAG(
                     'subnet-0ae2456871f5e54c9',
                     'subnet-0fc2ec5bceb602fc2',
                 ],
-                'securityGroups': ['sg-08a0269ac418cd3db'],   
+                'securityGroups': ['sg-08a0269ac418cd3db'],
                 'assignPublicIp': 'ENABLED',
             }
         },
@@ -48,25 +48,51 @@ with DAG(
         wait_for_completion=True,
         verbose=True,
     )
-    
-    load_silver_to_redshift = SQLExecuteQueryOperator(
-        task_id='load_silver_to_redshift',
+
+    truncate_order_details = SQLExecuteQueryOperator(
+            task_id='truncate_order_details',
+            conn_id='redshift_default',
+            sql="TRUNCATE silver.order_details;",
+        )
+
+    truncate_order_payments = SQLExecuteQueryOperator(
+        task_id='truncate_order_payments',
+        conn_id='redshift_default',
+        sql="TRUNCATE silver.order_payments;",
+    )
+
+    truncate_order_reviews = SQLExecuteQueryOperator(
+        task_id='truncate_order_reviews',
+        conn_id='redshift_default',
+        sql="TRUNCATE silver.order_reviews;",
+    )
+
+    copy_order_details = SQLExecuteQueryOperator(
+        task_id='copy_order_details',
         conn_id='redshift_default',
         sql="""
-            TRUNCATE silver.order_details;
-            TRUNCATE silver.order_payments;
-            TRUNCATE silver.order_reviews;
-
             COPY silver.order_details
             FROM 's3://olist-ecom-dev-33b0/silver/order_details/'
             IAM_ROLE '{{ var.value.redshift_iam_role_arn }}'
             FORMAT AS PARQUET;
+        """,
+    )
 
+    copy_order_payments = SQLExecuteQueryOperator(
+        task_id='copy_order_payments',
+        conn_id='redshift_default',
+        sql="""
             COPY silver.order_payments
             FROM 's3://olist-ecom-dev-33b0/silver/order_payments/'
             IAM_ROLE '{{ var.value.redshift_iam_role_arn }}'
             FORMAT AS PARQUET;
+        """,
+    )
 
+    copy_order_reviews = SQLExecuteQueryOperator(
+        task_id='copy_order_reviews',
+        conn_id='redshift_default',
+        sql="""
             COPY silver.order_reviews
             FROM 's3://olist-ecom-dev-33b0/silver/order_reviews/'
             IAM_ROLE '{{ var.value.redshift_iam_role_arn }}'
@@ -84,4 +110,4 @@ with DAG(
         bash_command='cd /opt/airflow/dbt && dbt test --profiles-dir /home/airflow/.dbt',
     )
 
-    fetch_olist >> run_glue_transform >> load_silver_to_redshift >> dbt_run >> dbt_test
+    fetch_olist >> run_glue_transform >> truncate_order_details >> truncate_order_payments >> truncate_order_reviews >> copy_order_details >> copy_order_payments >> copy_order_reviews >> dbt_run >> dbt_test
