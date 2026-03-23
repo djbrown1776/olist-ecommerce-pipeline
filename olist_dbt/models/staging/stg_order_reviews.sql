@@ -12,7 +12,7 @@ SELECT
     order_status,
     order_purchase_timestamp,
 
-    -- Payment details
+    -- Review details
     review_score,
     review_comment_title,
     review_comment_message,

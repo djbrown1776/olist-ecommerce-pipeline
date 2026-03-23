@@ -18,17 +18,6 @@ variable "pipeline_name" {
   description = "Name for the pipeline"
 }
 
-variable "s3_bucket_arn" {
-  type        = string
-  description = "ARN of the S3 bucket this pipeline writes to"
-}
-
-variable "s3_path_prefix" {
-  type        = string
-  default     = "*"
-  description = "S3 path prefix for least-privilege access (e.g. 'pokemon/*')"
-}
-
 variable "cpu" {
   type    = string
   default = "256"

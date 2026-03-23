@@ -1,7 +1,7 @@
 [project]
 name = "olist-ecommerce-pipeline"
 version = "0.1.0"
-description = "Add your description here"
+description = "End-to-end e-commerce data pipeline: Kaggle → S3 → PySpark/Glue → Redshift → dbt → Airflow"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [

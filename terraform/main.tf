@@ -27,7 +27,7 @@ resource "aws_s3_bucket" "data_bucket" {
   bucket = "${var.bucket_name}-${random_id.bucket_suffix.hex}"
 
   tags = {
-    Name        = "My bucket"
+    Name        = "${var.pipeline_name}-data"
     Environment = var.environment
   }
 }
@@ -134,8 +134,8 @@ resource "aws_iam_role_policy" "s3_access" {
       Effect = "Allow"
       Action = ["s3:PutObject"]
       Resource = [
-        var.s3_bucket_arn,
-        "${var.s3_bucket_arn}/*"
+        aws_s3_bucket.data_bucket.arn,
+        "${aws_s3_bucket.data_bucket.arn}/*"
       ]
     }]
   })

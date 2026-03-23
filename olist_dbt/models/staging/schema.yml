@@ -1,0 +1,30 @@
+version: 2
+
+models:
+  - name: stg_order_details
+    description: Cleaned order line items with customer, product, seller, and delivery info
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+      - name: order_item_id
+        tests:
+          - not_null
+
+  - name: stg_order_payments
+    description: Payment records per order with type and installment info
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+
+  - name: stg_order_reviews
+    description: Customer reviews per order with scores and comments
+    columns:
+      - name: order_id
+        tests:
+          - not_null
+      - name: review_id
+        tests:
+          - not_null
+          - unique
