@@ -3,6 +3,12 @@ import os
 import time
 import boto3
 import pandas as pd
+from dotenv import load_dotenv
+
+load_dotenv()
+
+S3_BUCKET = os.getenv("S3_BUCKET")
+assert S3_BUCKET, "S3_BUCKET environment variable is not set"
 
 
 def fetch_data(path, max_retries=3, retry_delay=2):
@@ -45,7 +51,7 @@ def main():
         return
 
     print(f"Fetched {len(dataframes)} tables.")
-    upload_to_s3(dataframes, bucket="olist-ecom-dev-33b0")
+    upload_to_s3(dataframes, bucket=S3_BUCKET)
     print("All files loaded to S3 💥")
 
 

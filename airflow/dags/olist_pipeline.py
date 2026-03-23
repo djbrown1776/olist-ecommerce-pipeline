@@ -1,12 +1,18 @@
+import os
 from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.ecs import EcsRunTaskOperator
 from airflow.providers.amazon.aws.operators.glue import GlueJobOperator
 from airflow.providers.common.sql.operators.sql import SQLExecuteQueryOperator
 from airflow.operators.bash import BashOperator
+from airflow.utils.task_group import TaskGroup
+
+# Set these in Airflow Variables or environment
+ECS_SUBNETS = os.environ.get('ECS_SUBNETS', '').split(',')
+ECS_SECURITY_GROUP = os.environ.get('ECS_SECURITY_GROUP', '')
 
 default_args = {
-    'owner': 'tank',
+    'owner': 'airflow',
     'retries': 2,
     'retry_delay': timedelta(minutes=5)
     }
@@ -29,12 +35,8 @@ with DAG(
         overrides={},
         network_configuration={
             'awsvpcConfiguration': {
-                'subnets': [
-                    'subnet-051ddc87ff8f49aef',
-                    'subnet-0ae2456871f5e54c9',
-                    'subnet-0fc2ec5bceb602fc2',
-                ],
-                'securityGroups': ['sg-08a0269ac418cd3db'],
+                'subnets': ECS_SUBNETS,
+                'securityGroups': [ECS_SECURITY_GROUP],
                 'assignPublicIp': 'ENABLED',
             }
         },
@@ -50,10 +52,10 @@ with DAG(
     )
 
     truncate_order_details = SQLExecuteQueryOperator(
-            task_id='truncate_order_details',
-            conn_id='redshift_default',
-            sql="TRUNCATE silver.order_details;",
-        )
+        task_id='truncate_order_details',
+        conn_id='redshift_default',
+        sql="TRUNCATE silver.order_details;",
+    )
 
     truncate_order_payments = SQLExecuteQueryOperator(
         task_id='truncate_order_payments',
@@ -72,7 +74,7 @@ with DAG(
         conn_id='redshift_default',
         sql="""
             COPY silver.order_details
-            FROM 's3://olist-ecom-dev-33b0/silver/order_details/'
+            FROM 's3://{{ var.value.s3_bucket }}/silver/order_details/'
             IAM_ROLE '{{ var.value.redshift_iam_role_arn }}'
             FORMAT AS PARQUET;
         """,
@@ -83,7 +85,7 @@ with DAG(
         conn_id='redshift_default',
         sql="""
             COPY silver.order_payments
-            FROM 's3://olist-ecom-dev-33b0/silver/order_payments/'
+            FROM 's3://{{ var.value.s3_bucket }}/silver/order_payments/'
             IAM_ROLE '{{ var.value.redshift_iam_role_arn }}'
             FORMAT AS PARQUET;
         """,
@@ -94,7 +96,7 @@ with DAG(
         conn_id='redshift_default',
         sql="""
             COPY silver.order_reviews
-            FROM 's3://olist-ecom-dev-33b0/silver/order_reviews/'
+            FROM 's3://{{ var.value.s3_bucket }}/silver/order_reviews/'
             IAM_ROLE '{{ var.value.redshift_iam_role_arn }}'
             FORMAT AS PARQUET;
         """,
@@ -110,4 +112,14 @@ with DAG(
         bash_command='cd /opt/airflow/dbt && dbt test --profiles-dir /home/airflow/.dbt',
     )
 
-    fetch_olist >> run_glue_transform >> truncate_order_details >> truncate_order_payments >> truncate_order_reviews >> copy_order_details >> copy_order_payments >> copy_order_reviews >> dbt_run >> dbt_test
+    with TaskGroup("truncate_silver") as truncate_group:
+        truncate_order_details
+        truncate_order_payments
+        truncate_order_reviews
+
+    with TaskGroup("copy_silver") as copy_group:
+        copy_order_details
+        copy_order_payments
+        copy_order_reviews
+
+    fetch_olist >> run_glue_transform >> truncate_group >> copy_group >> dbt_run >> dbt_test
