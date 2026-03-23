@@ -34,3 +34,7 @@ logs/
 airflow/logs/
 __pycache__/
 **/__pycache__/
+uv.lock
+.terraform.lock.hcl
+.vscode/
+*.pyc
